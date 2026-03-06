@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timetable MVP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/pocketbase/dist/pocketbase.umd.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen" x-data="timetableApp()">
+
+    <nav class="bg-white border-b p-4 mb-6">
+        <h1 class="text-xl font-bold text-slate-800 max-w-2xl mx-auto">My Schedule</h1>
+    </nav>
+
+    <main class="max-w-2xl mx-auto px-4">
+        <section class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-slate-200">
+            <div class="flex flex-col gap-3">
+                <input x-model="newName" type="text" placeholder="Subject/Event Name" 
+                       class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                <button @click="addEvent" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition">
+                    Add to Schedule
+                </button>
+            </div>
+        </section>
+
+        <section class="space-y-3">
+            <template x-for="event in events" :key="event.id">
+                <div class="bg-white p-4 rounded-lg border border-slate-200 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-slate-800" x-text="event.name"></p>
+                        <p class="text-sm text-slate-500" x-text="formatDate(event.time)"></p>
+                    </div>
+                </div>
+            </template>
+        </section>
+    </main>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
