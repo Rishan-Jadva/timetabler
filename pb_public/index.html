@@ -17,23 +17,46 @@
 
     <main class="max-w-2xl mx-auto px-4">
         <section class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-slate-200">
-            <div class="flex flex-col gap-3">
-                <input x-model="newName" type="text" placeholder="Subject/Event Name" 
-                       class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input x-model="newName" type="text" placeholder="Subject Name" 
+                    class="md:col-span-2 w-full p-2 border rounded-lg outline-none">
+                
+                <select x-model="newDay" class="p-2 border rounded-lg outline-none">
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                </select>
+
+                <input x-model="newTime" type="time" class="p-2 border rounded-lg outline-none">
+
                 <button @click="addEvent" 
-                        class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition">
-                    Add to Schedule
+                        class="md:col-span-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition">
+                    Add to Timetable
                 </button>
             </div>
         </section>
 
         <section class="space-y-3">
             <template x-for="event in events" :key="event.id">
-                <div class="bg-white p-4 rounded-lg border border-slate-200 flex justify-between items-center">
+                <div class="bg-white p-4 rounded-lg border border-slate-200 flex justify-between items-center transition hover:shadow-md">
                     <div>
                         <p class="font-bold text-slate-800" x-text="event.name"></p>
-                        <p class="text-sm text-slate-500" x-text="formatDate(event.time)"></p>
+                        <p class="text-sm text-slate-500" x-text="formatDisplay(event)"></p>
                     </div>
+
+                    <button 
+                        @click="deleteEvent(event.id)" 
+                        class="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                        title="Delete Event"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
                 </div>
             </template>
         </section>
