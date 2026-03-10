@@ -5,177 +5,265 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timetable MVP | Dark Mode</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="css/style.css">
-    
     <script src="https://cdn.jsdelivr.net/npm/pocketbase/dist/pocketbase.umd.js"></script>
     <script defer src="js/app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .year-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+        .mini-day { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; border-radius: 4px; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-200 min-h-screen" x-data="timetableApp()">
+<body class="bg-slate-950 text-slate-200 min-h-screen font-sans" x-data="timetableApp()" x-cloak>
 
-    <nav class="bg-slate-900 border-b border-slate-800 p-4 mb-6">
-        <h1 class="text-xl font-bold text-white max-w-[98%] mx-auto">My Schedule</h1>
-    </nav>
-
-    <main class="max-w-[98%] mx-auto px-4 py-4">
-        
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-slate-900 p-4 rounded-xl shadow-2xl border border-slate-800">
+    <nav class="bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 border-b border-slate-800 p-4">
+        <div class="max-w-[98%] mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <h1 class="text-xl font-black text-white tracking-tighter italic">CHRONO<span class="text-blue-500">OS</span></h1>
             <div class="flex items-center gap-4">
-                <h2 class="text-xl font-bold text-white" x-text="getHeaderText()"></h2>
-                <div class="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
-                    <button @click="prev()" class="p-2 hover:bg-slate-700 text-slate-300 rounded-md transition">←</button>
-                    <button @click="today()" class="px-4 py-2 hover:bg-slate-700 text-slate-200 rounded-md text-sm font-medium">Today</button>
-                    <button @click="next()" class="p-2 hover:bg-slate-700 text-slate-300 rounded-md transition">→</button>
+                <div class="relative">
+                    <input type="text" x-model="searchQuery" placeholder="Search logs..." 
+                        class="bg-slate-800 border border-slate-700 rounded-full px-5 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition w-48 md:w-64">
                 </div>
-            </div>
-
-            <div class="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
-                <template x-for="mode in ['year', 'month', 'week', 'day']">
-                    <button @click="viewMode = mode" 
-                        class="px-4 py-2 rounded-md text-sm font-medium capitalize transition"
-                        :class="viewMode === mode ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'"
-                        x-text="mode"></button>
-                </template>
+                <button @click="showSettings = !showSettings" 
+                    class="text-xs font-bold uppercase tracking-widest bg-slate-800 hover:bg-slate-700 px-5 py-2.5 rounded-full border border-slate-700 transition text-slate-300">
+                    <span x-text="showSettings ? 'Close' : 'Categories'"></span>
+                </button>
             </div>
         </div>
+    </nav>
 
-        <div class="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden min-h-[600px] mb-8">
-            
-            <template x-if="viewMode === 'year'">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6 bg-slate-950">
-                    <template x-for="(m, mIdx) in grid" :key="'month-container-' + mIdx">
-                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-sm cursor-pointer hover:border-blue-500 transition" 
-                            @click="currentDate.setMonth(m.index); viewMode = 'month';">
-                            <h4 class="font-bold text-slate-200 mb-2 text-sm" x-text="m.name"></h4>
-                            <div class="grid grid-cols-7 gap-1">
-                                <template x-for="(d, dIdx) in m.days" :key="'month-' + mIdx + '-day-' + dIdx">
-                                    <div class="aspect-square flex items-center justify-center">
-                                        <span class="text-[9px] w-4 h-4 flex items-center justify-center rounded-full"
-                                            :class="d.current ? 'bg-blue-600 text-white' : 'text-slate-600'" x-text="d.day"></span>
+    <main class="max-w-[98%] mx-auto px-4 py-8">
+        
+        <template x-if="showSettings">
+            <div class="mb-12 animate-in fade-in zoom-in-95 duration-300">
+                <section class="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl">
+                    <div class="flex justify-between items-center mb-8">
+                        <h3 class="text-sm font-black text-slate-500 uppercase tracking-[0.3em]">System Categories</h3>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-4 mb-8 p-6 bg-slate-950 rounded-2xl border border-slate-800">
+                        <input x-model="newCatName" type="text" placeholder="Category Name" class="flex-1 min-w-[200px] p-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500">
+                        <input type="color" x-model="newCatColor" class="w-12 h-12 rounded-lg border-none bg-transparent cursor-pointer">
+                        <button @click="addCategory" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition">Add</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <template x-for="cat in categories" :key="cat.id">
+                            <div class="p-3 rounded-xl border flex justify-between items-center group transition-all hover:scale-105" :style="getStyle(cat.color)">
+                                <span class="font-bold uppercase text-[10px]" x-text="cat.name"></span>
+                                <button @click="deleteCategory(cat.id)" class="opacity-0 group-hover:opacity-100 text-red-500 transition-opacity">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+            </div>
+        </template>
+
+        <template x-if="!showSettings">
+            <div>
+                <div class="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
+                    <div class="flex items-center gap-6">
+                        <div class="text-left">
+                            <h2 class="text-4xl font-black text-white leading-none mb-1" x-text="getHeaderText().main"></h2>
+                            <p class="text-blue-500 font-bold text-xs uppercase tracking-[0.2em]" x-text="getHeaderText().sub"></p>
+                        </div>
+                        <div class="flex bg-slate-900 rounded-2xl p-1.5 border border-slate-800 shadow-xl">
+                            <button @click="prev()" class="p-3 hover:bg-slate-800 text-slate-300 rounded-xl transition">←</button>
+                            <button @click="today()" class="px-6 py-2 hover:bg-slate-800 text-slate-200 rounded-xl text-xs font-black uppercase tracking-widest">Today</button>
+                            <button @click="next()" class="p-3 hover:bg-slate-800 text-slate-300 rounded-xl transition">→</button>
+                        </div>
+                    </div>
+
+                    <div class="flex bg-slate-900 rounded-2xl p-1.5 border border-slate-800 shadow-xl">
+                        <template x-for="mode in ['year', 'month', 'week', 'day']">
+                            <button @click="viewMode = mode; render();" 
+                                class="px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition"
+                                :class="viewMode === mode ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'"
+                                x-text="mode"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-800/50 overflow-hidden mb-12">
+                    
+                    <template x-if="viewMode === 'year'">
+                        <div class="p-8 year-grid animate-in fade-in zoom-in-95 duration-500">
+                            <template x-for="(monthName, mIdx) in months" :key="mIdx">
+                                <div class="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50">
+                                    <h4 class="text-white font-black text-xs uppercase tracking-widest mb-3" x-text="monthName"></h4>
+                                    <div class="grid grid-cols-7 gap-1">
+                                        <template x-for="day in generateMonthDays(currentDate.getFullYear(), mIdx)" :key="day.id">
+                                            <div class="mini-day relative group cursor-pointer"
+                                                :class="day.current ? 'bg-blue-600/20 border border-blue-500/50 text-blue-400' : 'text-slate-600 hover:bg-slate-800'"
+                                                @click="currentDate = new Date(currentDate.getFullYear(), mIdx, day.num); viewMode = 'day'; render();">
+                                                <span x-text="day.num"></span>
+                                                <template x-if="getEventsForDay(day.date).length > 0">
+                                                    <div class="absolute -top-1 -right-1 w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
+                                                </template>
+                                                <div class="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-slate-800 p-2 rounded-lg text-[9px] z-50 shadow-2xl border border-slate-700 text-white">
+                                                    <span x-text="getEventsForDay(day.date).length"></span> Entries
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="viewMode === 'month'">
+                        <div class="animate-in fade-in duration-500">
+                            <div class="grid grid-cols-7 bg-slate-800/20 border-b border-slate-800">
+                                <template x-for="dayName in days">
+                                    <div class="py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest" x-text="dayName"></div>
+                                </template>
+                            </div>
+                            <div class="grid grid-cols-7">
+                                <template x-for="(item, idx) in grid" :key="'month-'+idx">
+                                    <div class="h-32 border-r border-b border-slate-800/50 p-2 hover:bg-slate-800/30 transition relative group cursor-pointer"
+                                         @click="if(item.fullDate) { currentDate = item.fullDate; viewMode = 'day'; }">
+                                        <span class="text-sm font-black w-8 h-8 flex items-center justify-center rounded-xl transition"
+                                            :class="item.current ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'" x-text="item.day"></span>
+                                        <div class="mt-2 flex flex-col gap-1 overflow-hidden px-1">
+                                            <template x-for="event in getEventsForDay(item.fullDate).slice(0, 3)" :key="event.id">
+                                                <div class="h-1 w-full rounded-full" :style="'background-color:' + (event.color || '#3b82f6')"></div>
+                                            </template>
+                                        </div>
                                     </div>
                                 </template>
                             </div>
                         </div>
                     </template>
-                </div>
-            </template>
 
-            <template x-if="viewMode === 'month'">
-                <div>
-                    <div class="grid grid-cols-7 bg-slate-800/50 border-b border-slate-800">
-                        <template x-for="dayName in days">
-                            <div class="py-3 text-center text-xs font-bold text-slate-500 uppercase" x-text="dayName"></div>
-                        </template>
-                    </div>
-                    <div class="grid grid-cols-7">
-                        <template x-for="(item, idx) in grid" :key="'month-'+idx">
-                            <div class="h-32 border-r border-b border-slate-800 p-2 hover:bg-slate-800/40 transition relative group">
-                                <span class="text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full"
-                                    :class="item.current ? 'bg-blue-600 text-white' : 'text-slate-400'" x-text="item.day"></span>
+                    <template x-if="viewMode === 'week'">
+                        <div class="animate-in fade-in duration-500">
+                            <div class="grid grid-cols-7 bg-slate-800/20 border-b border-slate-800">
+                                <template x-for="dayName in days">
+                                    <div class="py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest" x-text="dayName"></div>
+                                </template>
+                            </div>
+                            <div class="grid grid-cols-7">
+                                <template x-for="(item, idx) in grid" :key="'week-'+idx">
+                                    <div class="h-[600px] border-r border-slate-800/50 p-3 hover:bg-slate-800/10 transition cursor-pointer"
+                                         @click="currentDate = item.fullDate; viewMode = 'day';">
+                                        <div class="text-center mb-6">
+                                            <span class="text-xl font-black" :class="item.current ? 'text-blue-500' : 'text-slate-700'" x-text="item.day"></span>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <template x-for="event in getEventsForDay(item.fullDate)" :key="event.id">
+                                                <div class="p-2.5 rounded-xl border group relative transition hover:scale-105" :style="getStyle(event.color)">
+                                                    <p class="text-[10px] font-black uppercase mb-1 truncate" x-text="event.name"></p>
+                                                    <div class="flex items-center gap-1 text-[8px] font-mono opacity-80">
+                                                        <span x-text="event.start_time"></span> - <span x-text="event.end_time"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="viewMode === 'day'">
+                        <div class="p-8 lg:p-20 min-h-[600px] bg-slate-900 animate-in slide-in-from-bottom-8 duration-700">
+                            <div class="max-w-4xl mx-auto">
+                                <div class="flex items-end justify-between mb-16 pb-8 border-b border-slate-800">
+                                    <div>
+                                        <h3 class="text-6xl font-black text-white tracking-tighter" x-text="currentDate.getDate()"></h3>
+                                        <p class="text-xl font-bold text-slate-500 uppercase tracking-widest" x-text="months[currentDate.getMonth()] + ' ' + currentDate.getFullYear()"></p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-blue-500 font-black text-sm uppercase tracking-widest" x-text="days[currentDate.getDay()]"></p>
+                                        <p class="text-slate-600 text-xs font-bold" x-text="getEventsForDay(currentDate).length + ' LOG ENTRIES'"></p>
+                                    </div>
+                                </div>
                                 
-                                <div class="mt-2 flex flex-col gap-1">
-                                    <template x-if="item.dayName">
-                                        <template x-for="event in getEventsForDay(item.dayName)" :key="event.id">
-                                            <div class="h-1.5 w-full rounded-full" 
-                                                :style="'background-color:' + (event.color || '#3b82f6')"
-                                                :title="event.name"></div>
-                                        </template>
+                                <div class="space-y-6">
+                                    <template x-for="event in getEventsForDay(currentDate)" :key="event.id">
+                                        <div class="flex gap-6 group">
+                                            <div class="w-24 pt-2 text-right">
+                                                <span class="text-xs font-black text-slate-600 font-mono" x-text="event.start_time"></span>
+                                            </div>
+                                            <div class="relative pb-10 flex-1">
+                                                <div class="absolute left-[-1.85rem] top-4 bottom-0 w-px bg-slate-800 group-last:bg-transparent"></div>
+                                                <div class="absolute left-[-2.15rem] top-3 w-2.5 h-2.5 rounded-full border-2 border-slate-900" :style="'background-color:' + (event.color || '#3b82f6')"></div>
+                                                
+                                                <div class="bg-slate-800/40 p-6 rounded-3xl border border-slate-700/50 flex justify-between items-center transition hover:bg-slate-800 hover:border-blue-500/50 shadow-xl">
+                                                    <div>
+                                                        <span class="text-[9px] font-black px-2 py-1 rounded bg-white/5 uppercase tracking-widest mb-2 inline-block" :style="'color:' + (event.color)" x-text="event.category"></span>
+                                                        <h4 class="text-xl font-bold text-white mb-1" x-text="event.name"></h4>
+                                                        <p class="text-xs text-slate-500 font-medium">Ends at <span x-text="event.end_time"></span></p>
+                                                    </div>
+                                                    <button @click.stop="deleteEvent(event.id)" class="p-3 rounded-2xl bg-red-500/5 text-red-500/20 hover:text-red-500 hover:bg-red-500/10 transition-all">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    
+                                    <template x-if="getEventsForDay(currentDate).length === 0">
+                                        <div class="text-center py-24 bg-slate-950/30 rounded-[3rem] border border-dashed border-slate-800">
+                                            <p class="text-slate-700 font-black text-xs uppercase tracking-[0.5em]">No Data Recorded</p>
+                                        </div>
                                     </template>
                                 </div>
                             </div>
-                        </template>
-                    </div>
-                </div>
-            </template>
-
-            <template x-if="viewMode === 'week'">
-                <div class="grid grid-cols-7 divide-x divide-slate-800 min-h-[500px] bg-slate-900">
-                    <template x-for="day in grid">
-                        <div class="flex flex-col items-center p-2">
-                            <span class="text-xs font-bold text-slate-500 uppercase" x-text="day.name"></span>
-                            <span class="text-lg font-bold mt-1 w-10 h-10 flex items-center justify-center rounded-full mb-4"
-                                :class="day.isToday ? 'bg-blue-600 text-white' : 'text-slate-300'" x-text="day.date"></span>
-                            
-                            <div class="w-full space-y-2">
-                                <template x-for="event in getEventsForDay(day.name)" :key="event.id">
-                                    <div class="p-2 border rounded-lg text-center shadow-md transition hover:brightness-125"
-                                        :style="getStyle(event.color)">
-                                        <p class="text-[10px] font-bold leading-tight" x-text="event.name"></p>
-                                        <p class="text-[9px] opacity-90 mt-0.5 font-mono" x-text="event.start_time"></p>
-                                    </div>
-                                </template>
-                            </div>
                         </div>
                     </template>
                 </div>
-            </template>
 
-            <template x-if="viewMode === 'day'">
-                <div class="p-8 flex flex-col items-center min-h-[500px] relative overflow-hidden bg-slate-900">
-                    <div class="absolute top-0 right-6 select-none pointer-events-none opacity-10">
-                        <span class="text-[12rem] font-black text-white leading-none" x-text="currentDate.getDate()"></span>
-                    </div>
-
-                    <div class="text-center w-full max-w-2xl relative z-10">
-                        <h3 class="text-4xl font-black text-white tracking-tight">
-                            <span x-text="months[currentDate.getMonth()]"></span> 
-                            <span x-text="currentDate.getDate() + getDaySuffix(currentDate.getDate())"></span>
-                        </h3>
-                        <p class="text-blue-500 font-bold uppercase tracking-[0.2em] text-sm mt-2" x-text="days[currentDate.getDay()]"></p>
-                        
-                        <div class="mt-12 space-y-4">
-                            <template x-for="event in events.filter(e => e.day === days[currentDate.getDay()])">
-                                <div class="border-l-4 p-4 text-left rounded-r-xl flex justify-between items-center shadow-lg backdrop-blur-sm"
-                                    :style="getStyle(event.color)">
-                                    <div>
-                                        <p class="font-bold text-lg" x-text="event.name"></p>
-                                        <p class="text-sm opacity-90 font-mono" x-text="event.start_time"></p>
-                                    </div>
-                                    <button @click="deleteEvent(event.id)" class="text-white/20 hover:text-red-500 transition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
+                <section class="bg-slate-900 p-10 rounded-[3rem] border border-slate-800/50 shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 blur-[100px] rounded-full"></div>
+                    <h3 class="font-black text-slate-600 mb-10 text-[10px] uppercase tracking-[0.4em]">Initialize Log Entry</h3>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 relative z-10">
+                        <div class="lg:col-span-2 space-y-6">
+                            <input x-model="newName" type="text" placeholder="Entry Title..." class="w-full bg-slate-950 border border-slate-800 p-5 rounded-2xl text-lg font-bold outline-none focus:ring-2 focus:ring-blue-500 transition">
+                            <div class="flex gap-4">
+                                <input x-model="newDate" type="date" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm outline-none">
+                                <div class="flex-1 flex gap-2 bg-slate-950 border border-slate-800 p-2 rounded-2xl">
+                                    <template x-if="colorMode === 'cat'">
+                                        <select x-model="selectedCategoryId" class="w-full bg-transparent p-2 outline-none text-xs font-bold uppercase tracking-widest">
+                                            <template x-for="cat in categories" :key="cat.id">
+                                                <option :value="cat.id" x-text="cat.name" class="bg-slate-900"></option>
+                                            </template>
+                                        </select>
+                                    </template>
+                                    <template x-if="colorMode === 'hex'">
+                                        <input type="color" x-model="newColor" class="w-full h-full bg-transparent border-none">
+                                    </template>
+                                    <button @click="colorMode = colorMode === 'cat' ? 'hex' : 'cat'" class="px-2 text-blue-500 hover:text-white transition">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
                                     </button>
                                 </div>
-                            </template>
-
-                            <template x-if="events.filter(e => e.day === days[currentDate.getDay()]).length === 0">
-                                <div class="py-16">
-                                    <p class="text-slate-600 italic">No events scheduled.</p>
-                                </div>
-                            </template>
+                            </div>
                         </div>
+
+                        <div class="space-y-6">
+                            <div class="flex items-center gap-4">
+                                <input x-model="newTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm">
+                                <span class="text-slate-700 font-bold">to</span>
+                                <input x-model="newEndTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm">
+                            </div>
+                            <label class="flex items-center gap-3 cursor-pointer group p-4 bg-slate-950/50 rounded-2xl border border-slate-800">
+                                <input type="checkbox" x-model="isRecurring" class="w-5 h-5 rounded bg-slate-800 border-slate-700 text-blue-600">
+                                <span class="text-[10px] font-black uppercase text-slate-500 group-hover:text-blue-500 transition">Repeat Record</span>
+                            </label>
+                        </div>
+
+                        <button @click="addEvent" class="h-full bg-blue-600 hover:bg-blue-500 text-white p-6 rounded-3xl flex flex-col items-center justify-center gap-2 transition group shadow-2xl shadow-blue-600/20 active:scale-95">
+                            <span class="text-2xl font-bold">+</span>
+                            <span class="text-[10px] font-black uppercase tracking-[0.2em]">Commit Entry</span>
+                        </button>
                     </div>
-                </div>
-            </template>
-        </div>
-
-        <section class="bg-slate-900 p-6 rounded-2xl shadow-2xl border border-slate-800">
-            <h3 class="font-bold text-slate-300 mb-4 flex items-center gap-2 uppercase tracking-widest text-xs">
-                <span class="w-3 h-3 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" :style="'background-color:' + newColor"></span>
-                System Entry / Add Event
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <input x-model="newName" type="text" placeholder="Task/Subject Name" 
-                    class="p-3 bg-slate-800 border border-slate-700 rounded-xl outline-none text-white focus:border-blue-500 transition">
-                
-                <select x-model="newDay" class="p-3 bg-slate-800 border border-slate-700 rounded-xl outline-none text-white focus:border-blue-500">
-                    <template x-for="day in days"><option :value="day" x-text="day"></option></template>
-                </select>
-
-                <input x-model="newTime" type="time" class="p-3 bg-slate-800 border border-slate-700 rounded-xl outline-none text-white">
-
-                <div class="flex items-center gap-3 px-3 bg-slate-800 border border-slate-700 rounded-xl">
-                    <input type="color" x-model="newColor" class="w-8 h-8 rounded border-none bg-transparent cursor-pointer">
-                    <span class="text-[10px] font-bold text-slate-500 uppercase">Color_Select</span>
-                </div>
-
-                <button @click="addEvent" 
-                        class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-900/20">
-                    Submit Entry
-                </button>
+                </section>
             </div>
-        </section>
+        </template>
     </main>
+
 </body>
 </html>

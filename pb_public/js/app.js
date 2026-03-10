@@ -3,30 +3,67 @@ document.addEventListener('alpine:init', () => {
 
     Alpine.data('timetableApp', () => ({
         viewMode: 'month',
+        showSettings: false,
+        searchQuery: '', 
         currentDate: new Date(),
         grid: [],
-        days: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
         months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+
+        categories: [],
+        selectedCategoryId: '',
+        newCatName: '',
+        newCatColor: '#3b82f6',
 
         events: [],
         newName: '',
-        newDay: 'Sunday',
+        newDate: new Date().toISOString().split('T')[0],
         newTime: '09:00',
-        newColor: '#3b82f6',
+        newEndTime: '10:00',
+        newColor: '#3b82f6', 
+        colorMode: 'cat', 
+        
+        isRecurring: false,
+        recurrenceRule: 'weekly',
+        recurrenceEnd: '',
 
         async init() {
+            await this.refreshCategories();
             await this.refreshEvents();
             this.render();
             this.$watch('viewMode', () => this.render());
             this.$watch('currentDate', () => this.render());
         },
 
+        async refreshCategories() {
+            try {
+                this.categories = await pb.collection('categories').getFullList({ sort: 'name' });
+                if (this.categories.length > 0 && !this.selectedCategoryId) {
+                    this.selectedCategoryId = this.categories[0].id;
+                }
+            } catch (err) { console.error("Category fetch failed", err); }
+        },
+
+        async addCategory() {
+            if (!this.newCatName) return;
+            try {
+                await pb.collection('categories').create({ name: this.newCatName, color: this.newCatColor });
+                this.newCatName = '';
+                await this.refreshCategories();
+            } catch (err) { console.error("Add category failed", err); }
+        },
+
+        async deleteCategory(id) {
+            if (!confirm("Delete category?")) return;
+            try {
+                await pb.collection('categories').delete(id);
+                await this.refreshCategories();
+            } catch (err) { console.error("Delete category failed", err); }
+        },
+
         next() { this.adjustDate(1); },
         prev() { this.adjustDate(-1); },
-        today() { 
-            this.currentDate = new Date(); 
-            this.render();
-        },
+        today() { this.currentDate = new Date(); this.render(); },
 
         adjustDate(offset) {
             let d = new Date(this.currentDate);
@@ -34,26 +71,15 @@ document.addEventListener('alpine:init', () => {
             else if (this.viewMode === 'month') d.setMonth(d.getMonth() + offset);
             else if (this.viewMode === 'week') d.setDate(d.getDate() + (offset * 7));
             else if (this.viewMode === 'day') d.setDate(d.getDate() + offset);
-            
             this.currentDate = d;
         },
 
         render() {
             if (this.viewMode === 'month') {
                 this.grid = this.generateMonthGrid(this.currentDate);
-            } else if (this.viewMode === 'year') {
-                this.grid = this.months.map((name, index) => ({
-                    name,
-                    index,
-                    days: this.generateMonthGrid(new Date(this.currentDate.getFullYear(), index, 1))
-                }));
             } else if (this.viewMode === 'week') {
-                this.grid = this.generateWeekGrid();
+                this.grid = this.generateWeekGrid(this.currentDate);
             }
-        },
-
-        getEventsForDay(dayName) {
-            return this.events.filter(e => e.day === dayName);
         },
 
         generateMonthGrid(date) {
@@ -64,117 +90,145 @@ document.addEventListener('alpine:init', () => {
             const todayStr = new Date().toDateString();
 
             const cells = [];
-            for (let i = 0; i < firstDay; i++) {
-                cells.push({ day: '', dayName: '', current: false });
-            }
+            for (let i = 0; i < firstDay; i++) cells.push({ day: '', fullDate: null, current: false });
             for (let i = 1; i <= daysInMonth; i++) {
                 const cellDate = new Date(year, month, i);
-                cells.push({ 
-                    day: i, 
-                    dayName: this.days[cellDate.getDay()],
-                    current: cellDate.toDateString() === todayStr 
-                });
+                cells.push({ day: i, fullDate: cellDate, current: cellDate.toDateString() === todayStr });
             }
             return cells;
         },
 
-        generateWeekGrid() {
-            const start = new Date(this.currentDate);
-            start.setDate(this.currentDate.getDate() - this.currentDate.getDay());
-            const todayStr = new Date().toDateString();
+        generateWeekGrid(date) {
+            const startOfWeek = new Date(date);
+            startOfWeek.setDate(date.getDate() - date.getDay());
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(startOfWeek);
+                d.setDate(startOfWeek.getDate() + i);
+                days.push({
+                    day: d.getDate(),
+                    fullDate: d,
+                    current: d.toDateString() === new Date().toDateString()
+                });
+            }
+            return days;
+        },
 
-            return Array.from({length: 7}, (_, i) => {
-                const d = new Date(start);
-                d.setDate(start.getDate() + i);
-                return {
-                    name: this.days[i],
-                    date: d.getDate(),
-                    isToday: d.toDateString() === todayStr
-                };
-            });
+        generateMonthDays(year, month) {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const todayStr = new Date().toDateString();
+            const days = [];
+            for (let i = 1; i <= daysInMonth; i++) {
+                const d = new Date(year, month, i);
+                days.push({
+                    num: i,
+                    date: d,
+                    current: d.toDateString() === todayStr,
+                    id: `mini-${year}-${month}-${i}`
+                });
+            }
+            return days;
+        },
+
+        getEventsForDay(dateInput) {
+            if (!dateInput) return [];
+            const compareDate = new Date(dateInput);
+            compareDate.setHours(0, 0, 0, 0);
+
+            return this.events.filter(event => {
+                const start = new Date(event.date);
+                start.setHours(0, 0, 0, 0);
+                const endRange = event.recurrence_end ? new Date(event.recurrence_end) : null;
+                if (endRange) endRange.setHours(0, 0, 0, 0);
+
+                let dateMatch = false;
+                if (this.isSameDay(start, compareDate)) {
+                    dateMatch = true;
+                } else if (event.is_recurring) {
+                    if (compareDate >= start && (!endRange || compareDate <= endRange)) {
+                        if (event.recurrence_rule === 'daily') dateMatch = true;
+                        if (event.recurrence_rule === 'weekly') dateMatch = start.getDay() === compareDate.getDay();
+                        if (event.recurrence_rule === 'monthly') dateMatch = start.getDate() === compareDate.getDate();
+                    }
+                }
+
+                if (!dateMatch) return false;
+
+                if (this.searchQuery.trim() !== '') {
+                    const q = this.searchQuery.toLowerCase();
+                    return event.name.toLowerCase().includes(q) || 
+                           (event.category && event.category.toLowerCase().includes(q));
+                }
+                return true;
+            }).sort((a, b) => a.start_time.localeCompare(b.start_time));
         },
 
         getHeaderText() {
-            if (this.viewMode === 'year') return this.currentDate.getFullYear();
-            if (this.viewMode === 'day') {
-                return `${this.days[this.currentDate.getDay()]}, ${this.months[this.currentDate.getMonth()]} ${this.currentDate.getDate()}`;
+            const year = this.currentDate.getFullYear();
+            const month = this.months[this.currentDate.getMonth()];
+            if (this.viewMode === 'year') return { main: year, sub: 'Annual Overview' };
+            if (this.viewMode === 'day') return { main: this.currentDate.getDate(), sub: `${month} ${year}` };
+            if (this.viewMode === 'week') {
+                const start = new Date(this.currentDate);
+                start.setDate(this.currentDate.getDate() - this.currentDate.getDay());
+                return { main: `Week ${start.getDate()}`, sub: `${this.months[start.getMonth()]} ${year}` };
             }
-            return `${this.months[this.currentDate.getMonth()]} ${this.currentDate.getFullYear()}`;
+            return { main: month, sub: year };
         },
 
         async refreshEvents() {
-            try {
-                this.events = await pb.collection('events').getFullList({
-                    sort: 'day,start_time',
-                });
-            } catch (err) {
-                console.error("Fetch failed:", err);
-            }
+            try { this.events = await pb.collection('events').getFullList({ sort: 'date,start_time' }); }
+            catch (err) { console.error("Fetch failed", err); }
         },
 
         async addEvent() {
-            if (!this.newName.trim()) return;
-            try {
-                await pb.collection('events').create({
-                    name: this.newName,
-                    day: this.newDay,
-                    start_time: this.newTime,
-                    color: this.newColor
-                });
-                this.newName = '';
-                await this.refreshEvents();
-            } catch (err) {
-                console.error("Add failed:", err);
+            if (!this.newName) return;
+            let finalColor = this.newColor;
+            let finalCat = "Custom";
+
+            if (this.colorMode === 'cat') {
+                if (!this.selectedCategoryId) return;
+                const cat = this.categories.find(c => c.id === this.selectedCategoryId);
+                finalColor = cat.color;
+                finalCat = cat.name;
             }
+
+            const data = {
+                "name": this.newName,
+                "category": finalCat,
+                "color": finalColor,
+                "date": new Date(this.newDate).toISOString(),
+                "start_time": this.newTime,
+                "end_time": this.newEndTime,
+                "is_recurring": this.isRecurring,
+                "recurrence_rule": this.isRecurring ? this.recurrenceRule : "weekly",
+                "recurrence_end": (this.isRecurring && this.recurrenceEnd) ? new Date(this.recurrenceEnd).toISOString() : null
+            };
+
+            try {
+                await pb.collection('events').create(data);
+                this.newName = '';
+                this.isRecurring = false;
+                await this.refreshEvents(); 
+                this.render();
+            } catch (err) { console.error("Error saving:", err); }
         },
 
         async deleteEvent(id) {
-            if(!confirm("Delete this event?")) return;
+            if(!confirm("Destroy this record permanently?")) return;
             try {
                 await pb.collection("events").delete(id);
                 this.events = this.events.filter(e => e.id !== id);
-            } catch (err) {
-                console.error("Delete failed:", err);
-            }
-        },
-
-        getDaySuffix(day) {
-            if (day > 3 && day < 21) return 'th';
-            switch (day % 10) {
-                case 1:  return "st";
-                case 2:  return "nd";
-                case 3:  return "rd";
-                default: return "th";
-            }
+            } catch (err) { console.error("Delete failed", err); }
         },
 
         getStyle(hex) {
             let color = (hex && hex.startsWith('#')) ? hex : '#3b82f6';
+            return `background-color: ${color}15; border-color: ${color}40; color: ${color};`;
+        },
 
-            const adjustColor = (hexCode) => {
-                let r = parseInt(hexCode.slice(1, 3), 16);
-                let g = parseInt(hexCode.slice(3, 5), 16);
-                let b = parseInt(hexCode.slice(5, 7), 16);
-
-                const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
-
-                if (luminance < 80) {
-                    r = Math.min(255, r + 120);
-                    g = Math.min(255, g + 120);
-                    b = Math.min(255, b + 120);
-                    return `rgb(${r}, ${g}, ${b})`;
-                }
-                return hexCode;
-            };
-
-            const displayColor = adjustColor(color);
-
-            return `
-                background-color: ${displayColor}15; 
-                border: 1px solid ${displayColor}40; 
-                color: ${displayColor};
-                box-shadow: 0 4px 10px -2px ${displayColor}10;
-            `;
-        }
+        isSameDay(d1, d2) {
+            return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+        },
     }));
 });
