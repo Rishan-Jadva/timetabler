@@ -255,10 +255,27 @@
                                 <span class="text-slate-700 font-bold">to</span>
                                 <input x-model="newEndTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm">
                             </div>
-                            <label class="flex items-center gap-3 cursor-pointer group p-4 bg-slate-950/50 rounded-2xl border border-slate-800">
+                            <label class="flex items-center gap-3 cursor-pointer group">
                                 <input type="checkbox" x-model="isRecurring" class="w-5 h-5 rounded bg-slate-800 border-slate-700 text-blue-600">
                                 <span class="text-[10px] font-black uppercase text-slate-500 group-hover:text-blue-500 transition">Repeat Record</span>
                             </label>
+
+                            <template x-if="isRecurring">
+                                <div class="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div class="flex flex-col gap-2">
+                                        <span class="text-[9px] font-bold text-slate-600 uppercase">Frequency</span>
+                                        <select x-model="recurrenceRule" class="bg-slate-900 border border-slate-700 p-2 rounded-xl text-xs font-bold text-white outline-none">
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <span class="text-[9px] font-bold text-slate-600 uppercase">End Repeat (Optional)</span>
+                                        <input x-model="recurrenceEnd" type="date" class="bg-slate-900 border border-slate-700 p-2 rounded-xl text-xs text-white outline-none">
+                                    </div>
+                                </div>
+                            </template>
                         </div>
 
                         <button @click="addEvent" class="h-full bg-blue-600 hover:bg-blue-500 text-white p-6 rounded-3xl flex flex-col items-center justify-center gap-2 transition group shadow-2xl shadow-blue-600/20 active:scale-95">

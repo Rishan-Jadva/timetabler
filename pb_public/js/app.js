@@ -193,22 +193,26 @@ document.addEventListener('alpine:init', () => {
                 finalCat = cat.name;
             }
 
+            const eventDate = new Date(this.newDate + 'T00:00:00');
+            
             const data = {
                 "name": this.newName,
                 "category": finalCat,
                 "color": finalColor,
-                "date": new Date(this.newDate).toISOString(),
+                "date": eventDate.toISOString(),
                 "start_time": this.newTime,
                 "end_time": this.newEndTime,
                 "is_recurring": this.isRecurring,
                 "recurrence_rule": this.isRecurring ? this.recurrenceRule : "weekly",
-                "recurrence_end": (this.isRecurring && this.recurrenceEnd) ? new Date(this.recurrenceEnd).toISOString() : null
+                "recurrence_end": (this.isRecurring && this.recurrenceEnd) ? 
+                                new Date(this.recurrenceEnd + 'T23:59:59').toISOString() : null
             };
 
             try {
                 await pb.collection('events').create(data);
                 this.newName = '';
                 this.isRecurring = false;
+                this.recurrenceEnd = ''; 
                 await this.refreshEvents(); 
                 this.render();
             } catch (err) { console.error("Error saving:", err); }
