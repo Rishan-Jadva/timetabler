@@ -12,6 +12,7 @@ document.addEventListener('alpine:init', () => {
         newName: '',
         newDay: 'Sunday',
         newTime: '09:00',
+        newColor: '#3b82f6',
 
         async init() {
             await this.refreshEvents();
@@ -51,6 +52,10 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        getEventsForDay(dayName) {
+            return this.events.filter(e => e.day === dayName);
+        },
+
         generateMonthGrid(date) {
             const year = date.getFullYear();
             const month = date.getMonth();
@@ -59,11 +64,14 @@ document.addEventListener('alpine:init', () => {
             const todayStr = new Date().toDateString();
 
             const cells = [];
-            for (let i = 0; i < firstDay; i++) cells.push({ day: '', current: false });
+            for (let i = 0; i < firstDay; i++) {
+                cells.push({ day: '', dayName: '', current: false });
+            }
             for (let i = 1; i <= daysInMonth; i++) {
                 const cellDate = new Date(year, month, i);
                 cells.push({ 
                     day: i, 
+                    dayName: this.days[cellDate.getDay()],
                     current: cellDate.toDateString() === todayStr 
                 });
             }
@@ -110,7 +118,8 @@ document.addEventListener('alpine:init', () => {
                 await pb.collection('events').create({
                     name: this.newName,
                     day: this.newDay,
-                    start_time: this.newTime
+                    start_time: this.newTime,
+                    color: this.newColor
                 });
                 this.newName = '';
                 await this.refreshEvents();
@@ -138,5 +147,34 @@ document.addEventListener('alpine:init', () => {
                 default: return "th";
             }
         },
+
+        getStyle(hex) {
+            let color = (hex && hex.startsWith('#')) ? hex : '#3b82f6';
+
+            const adjustColor = (hexCode) => {
+                let r = parseInt(hexCode.slice(1, 3), 16);
+                let g = parseInt(hexCode.slice(3, 5), 16);
+                let b = parseInt(hexCode.slice(5, 7), 16);
+
+                const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+
+                if (luminance < 80) {
+                    r = Math.min(255, r + 120);
+                    g = Math.min(255, g + 120);
+                    b = Math.min(255, b + 120);
+                    return `rgb(${r}, ${g}, ${b})`;
+                }
+                return hexCode;
+            };
+
+            const displayColor = adjustColor(color);
+
+            return `
+                background-color: ${displayColor}15; 
+                border: 1px solid ${displayColor}40; 
+                color: ${displayColor};
+                box-shadow: 0 4px 10px -2px ${displayColor}10;
+            `;
+        }
     }));
 });
