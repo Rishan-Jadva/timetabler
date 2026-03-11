@@ -8,11 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/pocketbase/dist/pocketbase.umd.js"></script>
     <script defer src="js/app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>
-        [x-cloak] { display: none !important; }
-        .year-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
-        .mini-day { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; border-radius: 4px; }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-slate-950 text-slate-200 min-h-screen font-sans" x-data="timetableApp()" x-cloak>
 
@@ -66,8 +62,16 @@
                 <div class="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
                     <div class="flex items-center gap-6">
                         <div class="text-left">
-                            <h2 class="text-4xl font-black text-white leading-none mb-1" x-text="getHeaderText().main"></h2>
-                            <p class="text-blue-500 font-bold text-xs uppercase tracking-[0.2em]" x-text="getHeaderText().sub"></p>
+                            <h2 class="text-4xl font-black text-white leading-none mb-1">
+                                <span x-text="getHeaderText().main"></span>
+                                
+                                <template x-if="getHeaderText().details">
+                                    <span class="text-xl font-bold text-slate-500 ml-2 tracking-tight" 
+                                        x-text="getHeaderText().details"></span>
+                                </template>
+                            </h2>
+                            <p class="text-blue-500 font-bold text-xs uppercase tracking-[0.2em]" 
+                            x-text="getHeaderText().sub"></p>
                         </div>
                         <div class="flex bg-slate-900 rounded-2xl p-1.5 border border-slate-800 shadow-xl">
                             <button @click="prev()" class="p-3 hover:bg-slate-800 text-slate-300 rounded-xl transition">←</button>
@@ -201,7 +205,7 @@
                                                         <h4 class="text-xl font-bold text-white mb-1" x-text="event.name"></h4>
                                                         <p class="text-xs text-slate-500 font-medium italic">Ends at <span x-text="event.end_time"></span></p>
                                                     </div>
-                                                    <button @click.stop="deleteEvent(event.id)" class="p-3 rounded-2xl bg-red-500/5 text-red-500/20 hover:text-red-500 hover:bg-red-500/10 transition-all">
+                                                    <button @click.stop="triggerDelete(event, currentDate)" class="p-3 rounded-2xl bg-red-500/5 text-red-500/20 hover:text-red-500 hover:bg-red-500/10 transition-all">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                         </svg>
@@ -222,71 +226,150 @@
                     </template>
                 </div>
 
-                <section class="bg-slate-900 p-10 rounded-[3rem] border border-slate-800/50 shadow-2xl relative overflow-hidden">
+                <section class="bg-slate-900 p-8 md:p-12 rounded-[3rem] border border-slate-800/50 shadow-2xl relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 blur-[100px] rounded-full"></div>
-                    <h3 class="font-black text-slate-600 mb-10 text-[10px] uppercase tracking-[0.4em]">Initialize Event</h3>
                     
-                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 relative z-10">
-                        <div class="lg:col-span-2 space-y-6">
-                            <input x-model="newName" type="text" placeholder="Event Title..." class="w-full bg-slate-950 border border-slate-800 p-5 rounded-2xl text-lg font-bold outline-none focus:ring-2 focus:ring-blue-500 transition">
-                            <div class="flex gap-4">
-                                <input x-model="newDate" type="date" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm outline-none">
-                                <div class="flex-1 flex gap-2 bg-slate-950 border border-slate-800 p-2 rounded-2xl">
-                                    <template x-if="colorMode === 'cat'">
-                                        <select x-model="selectedCategoryId" class="w-full bg-transparent p-2 outline-none text-xs font-bold uppercase tracking-widest">
-                                            <template x-for="cat in categories" :key="cat.id">
-                                                <option :value="cat.id" x-text="cat.name" class="bg-slate-900"></option>
+                    <div class="relative z-10">
+                        <h3 class="font-black text-white mb-8 text-[14px] uppercase tracking-[0.4em]">Initialize Event</h3>                        
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                            
+                            <div class="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-8">
+                                
+                                <div class="space-y-6">
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Event Title</label>
+                                        <input x-model="newName" type="text" placeholder="e.g. Math Class" class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:ring-2 focus:ring-blue-500 transition">
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="space-y-2">
+                                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Date</label>
+                                            <input x-model="newDate" type="date" class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white outline-none focus:border-blue-500">
+                                        </div>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between items-center ml-1">
+                                                <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Category / Color</label>
+                                                <button @click="colorMode = colorMode === 'cat' ? 'hex' : 'cat'" 
+                                                        class="text-[9px] font-bold uppercase text-blue-500 hover:text-white transition">
+                                                    <span x-text="colorMode === 'cat' ? 'Switch to Custom Hex' : 'Switch to Categories'"></span>
+                                                </button>
+                                            </div>
+
+                                            <template x-if="colorMode === 'cat'">
+                                                <div class="grid grid-cols-2 gap-2 max-h-[168px] overflow-y-auto p-1 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                                                    <template x-for="cat in categories" :key="cat.id">
+                                                        <button @click="selectedCategoryId = cat.id" 
+                                                                class="p-3 rounded-xl border text-[10px] font-black uppercase tracking-tight transition-all text-left flex items-center gap-2"
+                                                                :class="selectedCategoryId === cat.id ? 'ring-2 ring-white border-transparent' : 'border-slate-800 opacity-60 hover:opacity-100'"
+                                                                :style="getStyle(cat.color)">
+                                                            <div class="w-2 h-2 rounded-full" :style="'background-color:' + cat.color"></div>
+                                                            <span x-text="cat.name" class="truncate"></span>
+                                                        </button>
+                                                    </template>
+                                                </div>
                                             </template>
-                                        </select>
-                                    </template>
-                                    <template x-if="colorMode === 'hex'">
-                                        <input type="color" x-model="newColor" class="w-full h-full bg-transparent border-none">
-                                    </template>
-                                    <button @click="colorMode = colorMode === 'cat' ? 'hex' : 'cat'" class="px-2 text-blue-500 hover:text-white transition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
+
+                                            <template x-if="colorMode === 'hex'">
+                                                <div class="flex gap-3 bg-slate-950 border border-slate-800 p-3 rounded-2xl h-[54px] items-center">
+                                                    <input type="color" x-model="newColor" class="w-10 h-full bg-transparent border-none cursor-pointer">
+                                                    <input type="text" x-model="newColor" class="bg-transparent text-xs font-mono text-white outline-none w-full" placeholder="#000000">
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-6">
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Time Range</label>
+                                        <div class="flex items-center gap-3">
+                                            <input x-model="newTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white">
+                                            <span class="text-slate-700 font-bold">to</span>
+                                            <input x-model="newEndTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white">
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-2 min-h-[160px]">
+                                        <label class="flex items-center gap-3 cursor-pointer group mb-4 w-max">
+                                            <input type="checkbox" x-model="isRecurring" class="w-5 h-5 rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0">
+                                            <span class="text-[10px] font-black uppercase text-slate-500 group-hover:text-blue-500 transition">Enable Recurrence</span>
+                                        </label>
+
+                                        <div x-show="isRecurring" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 -translate-y-2" class="grid grid-cols-2 gap-4">
+                                            <div class="space-y-2">
+                                                <label class="text-[9px] font-bold text-slate-600 uppercase">Frequency</label>
+                                                <select x-model="recurrenceRule" class="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs font-bold text-white outline-none">
+                                                    <option value="daily">Daily</option>
+                                                    <option value="weekly">Weekly</option>
+                                                    <option value="monthly">Monthly</option>
+                                                </select>
+                                            </div>
+                                            <div class="space-y-2">
+                                                <label class="text-[9px] font-bold text-slate-600 uppercase">End Date</label>
+                                                <input x-model="recurrenceEnd" type="date" class="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs text-white outline-none">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="lg:col-span-3 h-full">
+                                <div class="lg:pt-6"> <button @click="addEvent" class="w-full bg-blue-600 hover:bg-blue-500 text-white p-8 rounded-[2rem] flex flex-col items-center justify-center gap-4 transition group shadow-2xl shadow-blue-600/20 active:scale-95">
+                                        <div class="bg-white/20 p-3 rounded-full group-hover:rotate-90 transition-transform duration-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" /></svg>
+                                        </div>
+                                        <span class="text-xs font-black uppercase tracking-[0.3em]">Add Event</span>
                                     </button>
                                 </div>
                             </div>
+
                         </div>
-
-                        <div class="space-y-6">
-                            <div class="flex items-center gap-4">
-                                <input x-model="newTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm">
-                                <span class="text-slate-700 font-bold">to</span>
-                                <input x-model="newEndTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm">
-                            </div>
-                            <label class="flex items-center gap-3 cursor-pointer group">
-                                <input type="checkbox" x-model="isRecurring" class="w-5 h-5 rounded bg-slate-800 border-slate-700 text-blue-600">
-                                <span class="text-[10px] font-black uppercase text-slate-500 group-hover:text-blue-500 transition">Repeat Record</span>
-                            </label>
-
-                            <template x-if="isRecurring">
-                                <div class="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <div class="flex flex-col gap-2">
-                                        <span class="text-[9px] font-bold text-slate-600 uppercase">Frequency</span>
-                                        <select x-model="recurrenceRule" class="bg-slate-900 border border-slate-700 p-2 rounded-xl text-xs font-bold text-white outline-none">
-                                            <option value="daily">Daily</option>
-                                            <option value="weekly">Weekly</option>
-                                            <option value="monthly">Monthly</option>
-                                        </select>
-                                    </div>
-                                    <div class="flex flex-col gap-2">
-                                        <span class="text-[9px] font-bold text-slate-600 uppercase">End Repeat (Optional)</span>
-                                        <input x-model="recurrenceEnd" type="date" class="bg-slate-900 border border-slate-700 p-2 rounded-xl text-xs text-white outline-none">
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-
-                        <button @click="addEvent" class="h-full bg-blue-600 hover:bg-blue-500 text-white p-6 rounded-3xl flex flex-col items-center justify-center gap-2 transition group shadow-2xl shadow-blue-600/20 active:scale-95">
-                            <span class="text-2xl font-bold">+</span>
-                            <span class="text-[10px] font-black uppercase tracking-[0.2em]">Add Event</span>
-                        </button>
                     </div>
                 </section>
             </div>
         </template>
     </main>
+    <div x-show="showDeleteModal" 
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        
+        <div @click.away="showDeleteModal = false" 
+            class="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300">
+            
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-black text-white mb-2">Manage Recurring Event</h3>
+                <p class="text-slate-400 text-xs font-medium uppercase tracking-widest leading-relaxed">
+                    Choose how you want to handle this deletion.
+                </p>
+            </div>
 
+            <div class="space-y-3">
+                <button @click="confirmDelete('single')" 
+                        class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-slate-700">
+                    Delete only today
+                </button>
+                
+                <button @click="confirmDelete('all')" 
+                        class="w-full py-4 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-red-500/20">
+                    Delete entire series
+                </button>
+                
+                <button @click="showDeleteModal = false" 
+                        class="w-full py-4 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-[0.2em] transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
