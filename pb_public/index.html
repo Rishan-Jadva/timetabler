@@ -200,16 +200,20 @@
                                             <div class="flex-1 pb-10">
                                                 <div class="bg-slate-800/40 p-6 rounded-3xl border border-slate-700/50 flex justify-between items-center transition hover:bg-slate-800 hover:border-blue-500/50 shadow-xl group-hover:-translate-y-1 duration-300">
                                                     <div>
-                                                        <span class="text-[9px] font-black px-2 py-1 rounded bg-white/5 uppercase tracking-widest mb-2 inline-block" 
-                                                            :style="'color:' + (event.color)" x-text="event.category"></span>
+                                                        <span class="text-[9px] font-black px-2 py-1 rounded bg-white/5 uppercase tracking-widest mb-2 inline-block" :style="'color:' + (event.color)" x-text="event.category"></span>
                                                         <h4 class="text-xl font-bold text-white mb-1" x-text="event.name"></h4>
                                                         <p class="text-xs text-slate-500 font-medium italic">Ends at <span x-text="event.end_time"></span></p>
                                                     </div>
-                                                    <button @click.stop="triggerDelete(event, currentDate)" class="p-3 rounded-2xl bg-red-500/5 text-red-500/20 hover:text-red-500 hover:bg-red-500/10 transition-all">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
+
+                                                    <div class="flex items-center gap-2">
+                                                        <button @click.stop="triggerEdit(event, currentDate)" class="p-3 rounded-2xl bg-blue-500/5 text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10 transition-all">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                                        </button> 
+                                                        
+                                                        <button @click.stop="triggerDelete(event, currentDate)" class="p-3 rounded-2xl bg-red-500/5 text-red-500/20 hover:text-red-500 hover:bg-red-500/10 transition-all">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -368,6 +372,88 @@
                         class="w-full py-4 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-[0.2em] transition">
                     Cancel
                 </button>
+            </div>
+        </div>
+    </div>
+    <div x-show="showEditChoiceModal" 
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        
+        <div @click.away="showEditChoiceModal = false" 
+            class="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] max-w-sm w-full shadow-2xl">
+            
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-black text-white mb-2">Edit Recurring Event</h3>
+                <p class="text-slate-400 text-xs font-medium uppercase tracking-widest">How would you like to edit this?</p>
+            </div>
+
+            <div class="space-y-3">
+                <button @click="selectEditMode('single')" 
+                        class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-slate-700">
+                    Edit only today
+                </button>
+                
+                <button @click="selectEditMode('all')" 
+                        class="w-full py-4 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-blue-500/20">
+                    Edit entire series
+                </button>
+                
+                <button @click="showEditChoiceModal = false" 
+                        class="w-full py-4 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-[0.2em] transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+    <div x-show="isEditMode" 
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+        
+        <div @click.away="isEditMode = false" 
+            class="bg-slate-900 border border-slate-800 p-8 rounded-[3rem] max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+            
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-xl font-black text-white tracking-widest uppercase">Edit Event</h3>
+                <button @click="isEditMode = false" class="text-slate-500 hover:text-white transition">&times; Close</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4 md:col-span-2">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Event Title</label>
+                    <input x-model="newName" class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="space-y-4">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Date</label>
+                    <input x-model="newDate" type="date" class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white outline-none">
+                </div>
+
+                <div class="space-y-4">
+                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Time Range</label>
+                    <div class="flex items-center gap-2">
+                        <input x-model="newTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white">
+                        <input x-model="newEndTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white">
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 pt-6">
+                    <button @click="saveEdit()" 
+                            class="w-full bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition shadow-lg shadow-blue-600/20">
+                        Save Changes
+                    </button>
+                </div>
             </div>
         </div>
     </div>

@@ -31,6 +31,11 @@ document.addEventListener('alpine:init', () => {
         deletingEvent: null,
         deletingDate: null,
 
+        showEditChoiceModal: false,
+        editingEvent: null,
+        editingDate: null,
+        isEditMode: false,
+
         async init() {
             await this.refreshCategories();
             await this.refreshEvents();
@@ -281,6 +286,79 @@ document.addEventListener('alpine:init', () => {
             this.deletingEvent = null;
             this.deletingDate = null;
             this.render();
+        },
+
+        triggerEdit(event, instanceDate) {
+            this.editingEvent = event;
+            this.editingDate = instanceDate;
+
+            if (!event.is_recurring) {
+                this.openEditForm(event);
+                return;
+            }
+            this.showEditChoiceModal = true;
+        },
+
+        async saveEdit() {
+            if (!this.newName || !this.editingEvent) return;
+
+            const eventDate = new Date(this.newDate + 'T00:00:00');
+            
+            const data = {
+                "name": this.newName,
+                "date": eventDate.toISOString(),
+                "start_time": this.newTime,
+                "end_time": this.newEndTime,
+                "is_recurring": this.isRecurring,
+                "recurrence_rule": this.isRecurring ? this.recurrenceRule : "weekly",
+                "recurrence_end": (this.isRecurring && this.recurrenceEnd) ? 
+                                new Date(this.recurrenceEnd + 'T23:59:59').toISOString() : null
+            };
+
+            try {
+                if (this.editingEvent && this.editingEvent.id) {
+                    await pb.collection('events').update(this.editingEvent.id, data);
+                } else {
+                    await pb.collection('events').create(data);
+                }
+                this.isEditMode = false;
+                await this.refreshEvents();
+                this.render();
+            } catch (err) { console.error(err); }
+        },
+
+        async selectEditMode(mode) {
+            this.showEditChoiceModal = false;
+            
+            if (mode === 'single') {
+                const dateStr = this.editingDate.toLocaleDateString('en-CA');
+                const updatedExceptions = this.editingEvent.exceptions ? [...this.editingEvent.exceptions, dateStr] : [dateStr];
+                
+                try {
+                    await pb.collection('events').update(this.editingEvent.id, { "exceptions": updatedExceptions });
+                    
+                    this.openEditForm(this.editingEvent);
+                    this.newDate = dateStr;
+                    this.isRecurring = false;
+                    this.editingEvent = null; 
+                } catch (err) { console.error(err); }
+            } else {
+                this.openEditForm(this.editingEvent);
+            }
+        },
+
+        openEditForm(event) {
+            this.isEditMode = true;
+            this.newName = event.name;
+            this.newDate = new Date(event.date).toLocaleDateString('en-CA');
+            this.newTime = event.start_time;
+            this.newEndTime = event.end_time;
+            this.newColor = event.color;
+            this.isRecurring = event.is_recurring;
+            this.recurrenceRule = event.recurrence_rule;
+            this.recurrenceEnd = event.recurrence_end ? new Date(event.recurrence_end).toLocaleDateString('en-CA') : '';
+            
+            document.querySelector('section').scrollIntoView({ behavior: 'smooth' });
         },
 
         getStyle(hex) {
