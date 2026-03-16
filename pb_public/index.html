@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timetable MVP | Dark Mode</title>
+    <title>CHRONOS | Timetable</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/pocketbase/dist/pocketbase.umd.js"></script>
     <script defer src="js/app.js"></script>
@@ -17,26 +17,30 @@
             <h1 class="text-xl font-black text-white tracking-tighter italic">CHRON<span class="text-blue-500">OS</span></h1>
             <div class="flex items-center gap-4">
                 <div class="relative">
-                    <input type="text" x-model="searchQuery" placeholder="Search events..." 
+                    <input type="text" x-model="searchQuery" placeholder="Search events..."
                         class="bg-slate-800 border border-slate-700 rounded-full px-5 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition w-48 md:w-64">
                 </div>
-                <button @click="showSettings = !showSettings" 
+                <button @click="togglePanel('settings')"
                     class="text-xs font-bold uppercase tracking-widest bg-slate-800 hover:bg-slate-700 px-5 py-2.5 rounded-full border border-slate-700 transition text-slate-300">
-                    <span x-text="showSettings ? 'Close' : 'Color Categories'"></span>
+                    <span x-text="activePanel === 'settings' ? 'Close' : 'Color Categories'"></span>
+                </button>
+                <button @click="togglePanel('tasks')"
+                    class="text-xs font-bold uppercase tracking-widest bg-slate-800 hover:bg-slate-700 px-5 py-2.5 rounded-full border border-slate-700 transition text-slate-300">
+                    <span x-text="activePanel === 'tasks' ? 'Close' : 'Task Timetable'"></span>
                 </button>
             </div>
         </div>
     </nav>
 
     <main class="max-w-[98%] mx-auto px-4 py-8">
-        
-        <template x-if="showSettings">
+
+        <div x-show="activePanel === 'settings'">
             <div class="mb-12 animate-in fade-in zoom-in-95 duration-300">
                 <section class="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl">
                     <div class="flex justify-between items-center mb-8">
                         <h3 class="text-sm font-black text-slate-500 uppercase tracking-[0.3em]">Event Color Categories</h3>
                     </div>
-                    
+
                     <div class="flex flex-wrap gap-4 mb-8 p-6 bg-slate-950 rounded-2xl border border-slate-800">
                         <input x-model="newCatName" type="text" placeholder="Category Name" class="flex-1 min-w-[200px] p-3 bg-slate-800 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500">
                         <input type="color" x-model="newCatColor" class="w-12 h-12 rounded-lg border-none bg-transparent cursor-pointer">
@@ -48,30 +52,281 @@
                             <div class="p-3 rounded-xl border flex justify-between items-center group transition-all hover:scale-105" :style="getStyle(cat.color)">
                                 <span class="font-bold uppercase text-[10px]" x-text="cat.name"></span>
                                 <button @click="deleteCategory(cat.id)" class="opacity-0 group-hover:opacity-100 text-red-500 transition-opacity">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
                         </template>
                     </div>
                 </section>
             </div>
-        </template>
+        </div>
 
-        <template x-if="!showSettings">
+        <div x-show="activePanel === 'tasks'" x-cloak>
+            <div class="animate-in fade-in zoom-in-95 duration-300">
+
+                <div class="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
+                    <div class="flex items-center gap-6">
+                        <div class="text-left">
+                            <h2 class="text-4xl font-black text-white leading-none mb-1">Task <span class="text-blue-500">Timetable</span></h2>
+                            <p class="text-blue-500 font-bold text-xs uppercase tracking-[0.2em]" x-text="getTaskWeekLabel()"></p>
+                        </div>
+                        <div class="flex bg-slate-900 rounded-2xl p-1.5 border border-slate-800 shadow-xl">
+                            <button @click="taskWeekOffset--; renderTaskWeek()" class="p-3 hover:bg-slate-800 text-slate-300 rounded-xl transition">←</button>
+                            <button @click="taskWeekOffset = 0; renderTaskWeek()" class="px-6 py-2 hover:bg-slate-800 text-slate-200 rounded-xl text-xs font-black uppercase tracking-widest">Today</button>
+                            <button @click="taskWeekOffset++; renderTaskWeek()" class="p-3 hover:bg-slate-800 text-slate-300 rounded-xl transition">→</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl px-5 py-3 text-center">
+                            <p class="text-blue-500 font-black text-xl" x-text="tasks.length"></p>
+                            <p class="text-slate-500 text-[9px] uppercase tracking-widest font-bold">Total Tasks</p>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl px-5 py-3 text-center">
+                            <p class="text-green-400 font-black text-xl" x-text="tasks.filter(t=>t.status==='complete').length"></p>
+                            <p class="text-slate-500 text-[9px] uppercase tracking-widest font-bold">Complete</p>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl px-5 py-3 text-center">
+                            <p class="text-amber-400 font-black text-xl" x-text="getWeekTaskHours()"></p>
+                            <p class="text-slate-500 text-[9px] uppercase tracking-widest font-bold">Hrs This Week</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-800/50 overflow-hidden mb-10">
+                    <div class="grid grid-cols-8 bg-slate-800/30 border-b border-slate-800">
+                        <div class="py-4 text-center text-[10px] font-black text-slate-600 uppercase tracking-widest"></div>
+                        <template x-for="(col, idx) in taskWeekCols" :key="idx">
+                            <div class="py-4 text-center border-l border-slate-800/50">
+                                <p class="text-[10px] font-black uppercase tracking-widest" :class="col.isToday ? 'text-blue-500' : 'text-slate-500'" x-text="col.dayName"></p>
+                                <p class="text-lg font-black mt-0.5" :class="col.isToday ? 'text-blue-400' : 'text-slate-600'" x-text="col.dayNum"></p>
+                            </div>
+                        </template>
+                    </div>
+                    <template x-for="(hour, hIdx) in taskHours" :key="hIdx">
+                        <div class="grid grid-cols-8 border-b border-slate-800/30 min-h-[56px]">
+                            <div class="flex items-start justify-end pr-4 pt-2">
+                                <span class="text-[10px] font-mono text-slate-600" x-text="formatHour(hour)"></span>
+                            </div>
+                            <template x-for="(col, dIdx) in taskWeekCols" :key="dIdx">
+                                <div class="border-l border-slate-800/30 p-1 relative">
+                                    <template x-for="block in getTaskBlocksForSlot(col.dateISO, hour)" :key="block.taskId + '-' + hour">
+                                        <div class="rounded-lg px-2 py-1 mb-1 text-[9px] font-bold leading-tight overflow-hidden group relative cursor-pointer"
+                                             :style="'background-color:' + block.color + '22; border-left: 2px solid ' + block.color + '; color:' + block.color"
+                                             :title="block.label + ' (' + block.durationHrs + 'h)'">
+                                            <span class="block truncate uppercase tracking-tight" x-text="block.label"></span>
+                                            <span class="block text-[8px] opacity-60" x-text="block.durationHrs + 'h session'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <section class="bg-slate-900 p-8 md:p-12 rounded-[3rem] border border-slate-800/50 shadow-2xl relative overflow-hidden mb-10">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-purple-600/5 blur-[100px] rounded-full"></div>
+                    <div class="relative z-10">
+                        <h3 class="font-black text-white mb-8 text-[14px] uppercase tracking-[0.4em]">Add New Task</h3>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                            <div class="space-y-5">
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Task Name</label>
+                                    <input x-model="newTask.name" type="text" placeholder="e.g. Cybersecurity Assignment"
+                                        class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:ring-2 focus:ring-blue-500 transition">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Category</label>
+                                        <select x-model="newTask.categoryId"
+                                            class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-blue-500 transition">
+                                            <option value="">-- Select Category --</option>
+                                            <template x-for="cat in categories" :key="cat.id">
+                                                <option :value="cat.id" x-text="cat.name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Priority</label>
+                                        <select x-model="newTask.priority"
+                                            class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-blue-500 transition">
+                                            <option value="high">High</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="low">Low</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Notes</label>
+                                    <input x-model="newTask.notes" type="text" placeholder="e.g. Focus on chapters 5-8, group project..."
+                                        class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:ring-2 focus:ring-blue-500 transition">
+                                </div>
+                            </div>
+
+                            <div class="space-y-5">
+                                <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4">
+                                    <label class="flex items-center gap-3 cursor-pointer group mb-1">
+                                        <input type="checkbox" x-model="newTask.isRecurring" class="w-5 h-5 rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0">
+                                        <span class="text-sm font-black uppercase tracking-widest text-slate-300 group-hover:text-blue-400 transition">Recurring Task</span>
+                                    </label>
+                                    <p class="text-[10px] text-slate-600 ml-8">e.g. TryHackMe labs, weekly gym, ongoing work</p>
+                                </div>
+
+                                <div x-show="!newTask.isRecurring" class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="space-y-2">
+                                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Due Date</label>
+                                            <input x-model="newTask.dueDate" type="date"
+                                                class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white outline-none focus:border-blue-500">
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Linked Event (optional)</label>
+                                            <select x-model="newTask.linkedEventId"
+                                                class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white outline-none focus:border-blue-500">
+                                                <option value="">None</option>
+                                                <template x-for="ev in events" :key="ev.id">
+                                                    <option :value="ev.id" x-text="ev.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="space-y-2">
+                                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Total Hours Needed</label>
+                                            <input x-model.number="newTask.totalHours" type="number" min="1" max="500" placeholder="e.g. 20"
+                                                class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-blue-500 transition"
+                                                @input="updateAllocPreview()">
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Session Length (hrs)</label>
+                                            <input x-model.number="newTask.sessionLen" type="number" min="0.5" max="8" step="0.5" placeholder="e.g. 2"
+                                                class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-blue-500 transition"
+                                                @input="updateAllocPreview()">
+                                        </div>
+                                    </div>
+                                    <div x-show="allocPreview" class="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-4">
+                                        <p class="text-blue-400 text-[11px] font-bold uppercase tracking-wider mb-1">Auto-Allocation Preview</p>
+                                        <p class="text-blue-300 text-xs" x-text="allocPreview"></p>
+                                    </div>
+                                </div>
+
+                                <div x-show="newTask.isRecurring" class="space-y-4">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="space-y-2">
+                                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Hours Per Week</label>
+                                            <input x-model.number="newTask.weeklyHours" type="number" min="1" max="80" placeholder="e.g. 6"
+                                                class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-blue-500 transition">
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Session Length (hrs)</label>
+                                            <input x-model.number="newTask.recSessionLen" type="number" min="0.5" max="8" step="0.5" placeholder="e.g. 3"
+                                                class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:border-blue-500 transition">
+                                        </div>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Recurrence End Date (leave blank = forever)</label>
+                                        <input x-model="newTask.recurrenceEnd" type="date"
+                                            class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white outline-none focus:border-blue-500">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button @click="addTask()"
+                            class="w-full bg-blue-600 hover:bg-blue-500 text-white p-6 rounded-[2rem] flex items-center justify-center gap-4 transition group shadow-2xl shadow-blue-600/20 active:scale-95">
+                            <div class="bg-white/20 p-2 rounded-full group-hover:rotate-90 transition-transform duration-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+                            </div>
+                            <span class="text-xs font-black uppercase tracking-[0.3em]">Add Task & Auto-Allocate</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="bg-slate-900 p-8 rounded-[3rem] border border-slate-800/50 shadow-2xl">
+                    <div class="flex items-center justify-between mb-8">
+                        <h3 class="font-black text-white text-[14px] uppercase tracking-[0.4em]">All Tasks</h3>
+                        <div class="flex gap-3">
+                            <button @click="taskFilter = 'all'" class="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition"
+                                :class="taskFilter==='all' ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-700 text-slate-500 hover:text-white'">All</button>
+                            <button @click="taskFilter = 'active'" class="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition"
+                                :class="taskFilter==='active' ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-700 text-slate-500 hover:text-white'">Active</button>
+                            <button @click="taskFilter = 'complete'" class="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition"
+                                :class="taskFilter==='complete' ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-700 text-slate-500 hover:text-white'">Done</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <template x-for="task in filteredTasks" :key="task.id">
+                            <div class="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 flex items-center justify-between gap-4 hover:border-blue-500/30 transition group">
+                                <div class="flex items-center gap-4 flex-1 min-w-0">
+                                    <div class="w-3 h-3 rounded-full flex-shrink-0" :style="'background-color:' + getCategoryColor(task.category_id)"></div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                            <h4 class="font-bold text-white text-sm" x-text="task.name"></h4>
+                                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full"
+                                                :class="{
+                                                    'bg-red-500/20 text-red-400': task.priority === 'high',
+                                                    'bg-amber-500/20 text-amber-400': task.priority === 'medium',
+                                                    'bg-green-500/20 text-green-400': task.priority === 'low'
+                                                }"
+                                                x-text="task.priority"></span>
+                                            <span x-show="task.is_recurring" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">Recurring</span>
+                                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full"
+                                                :class="{
+                                                    'bg-slate-700 text-slate-400': task.status === 'not_started',
+                                                    'bg-blue-500/20 text-blue-400': task.status === 'in_progress',
+                                                    'bg-green-500/20 text-green-400': task.status === 'complete'
+                                                }"
+                                                x-text="task.status.replace('_', ' ')"></span>
+                                        </div>
+                                        <p class="text-xs text-slate-500 truncate">
+                                            <template x-if="task.is_recurring">
+                                                <span x-text="task.weekly_hours + 'h/week · ' + task.rec_session_len + 'h sessions' + (task.recurrence_end ? ' · ends ' + task.recurrence_end : ' · ongoing forever')"></span>
+                                            </template>
+                                            <template x-if="!task.is_recurring">
+                                                <span x-text="'Due ' + (task.due_date || '—') + ' · ' + task.total_hours + 'h total · ' + task.session_len + 'h sessions'"></span>
+                                            </template>
+                                            <span x-show="task.notes" x-text="' · ' + task.notes" class="italic text-slate-600"></span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <select @change="updateTaskStatus(task.id, $event.target.value)" :value="task.status"
+                                        class="bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-xl px-3 py-2 outline-none focus:border-blue-500">
+                                        <option value="not_started">Not Started</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="complete">Complete</option>
+                                    </select>
+                                    <button @click="deleteTask(task.id)"
+                                        class="p-2 rounded-xl bg-red-500/5 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 transition opacity-0 group-hover:opacity-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="filteredTasks.length === 0">
+                            <div class="text-center py-16 bg-slate-950/30 rounded-[2rem] border border-dashed border-slate-800">
+                                <p class="text-slate-700 font-black text-xs uppercase tracking-[0.5em]">No Tasks Found</p>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <div x-show="activePanel === null">
             <div>
                 <div class="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
                     <div class="flex items-center gap-6">
                         <div class="text-left">
                             <h2 class="text-4xl font-black text-white leading-none mb-1">
                                 <span x-text="getHeaderText().main"></span>
-                                
                                 <template x-if="getHeaderText().details">
-                                    <span class="text-xl font-bold text-slate-500 ml-2 tracking-tight" 
-                                        x-text="getHeaderText().details"></span>
+                                    <span class="text-xl font-bold text-slate-500 ml-2 tracking-tight" x-text="getHeaderText().details"></span>
                                 </template>
                             </h2>
-                            <p class="text-blue-500 font-bold text-xs uppercase tracking-[0.2em]" 
-                            x-text="getHeaderText().sub"></p>
+                            <p class="text-blue-500 font-bold text-xs uppercase tracking-[0.2em]" x-text="getHeaderText().sub"></p>
                         </div>
                         <div class="flex bg-slate-900 rounded-2xl p-1.5 border border-slate-800 shadow-xl">
                             <button @click="prev()" class="p-3 hover:bg-slate-800 text-slate-300 rounded-xl transition">←</button>
@@ -82,7 +337,7 @@
 
                     <div class="flex bg-slate-900 rounded-2xl p-1.5 border border-slate-800 shadow-xl">
                         <template x-for="mode in ['year', 'month', 'week', 'day']">
-                            <button @click="viewMode = mode; render();" 
+                            <button @click="viewMode = mode; render();"
                                 class="px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition"
                                 :class="viewMode === mode ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'"
                                 x-text="mode"></button>
@@ -91,7 +346,7 @@
                 </div>
 
                 <div class="bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-800/50 overflow-hidden mb-12">
-                    
+
                     <template x-if="viewMode === 'year'">
                         <div class="p-8 year-grid animate-in fade-in zoom-in-95 duration-500">
                             <template x-for="(monthName, mIdx) in months" :key="mIdx">
@@ -184,19 +439,17 @@
                                         <p class="text-slate-600 text-xs font-bold" x-text="getEventsForDay(currentDate).length + ' EVENTS'"></p>
                                     </div>
                                 </div>
-                                
-                                <div class="space-y-0"> <template x-for="event in getEventsForDay(currentDate)" :key="event.id">
+                                <div class="space-y-0">
+                                    <template x-for="event in getEventsForDay(currentDate)" :key="event.id">
                                         <div class="flex gap-8 group">
                                             <div class="w-20 pt-4 text-right shrink-0">
                                                 <span class="text-xs font-black text-slate-400 font-mono tracking-tighter" x-text="event.start_time"></span>
                                             </div>
-
                                             <div class="relative w-4 flex justify-center">
                                                 <div class="absolute top-0 bottom-0 w-px bg-slate-800 group-last:h-12"></div>
-                                                <div class="z-10 mt-5 w-3 h-3 rounded-full border-2 border-slate-900 shadow-[0_0_10px_rgba(0,0,0,0.5)]" 
+                                                <div class="z-10 mt-5 w-3 h-3 rounded-full border-2 border-slate-900 shadow-[0_0_10px_rgba(0,0,0,0.5)]"
                                                     :style="'background-color:' + (event.color || '#3b82f6')"></div>
                                             </div>
-                                            
                                             <div class="flex-1 pb-10">
                                                 <div class="bg-slate-800/40 p-6 rounded-3xl border border-slate-700/50 flex justify-between items-center transition hover:bg-slate-800 hover:border-blue-500/50 shadow-xl group-hover:-translate-y-1 duration-300">
                                                     <div>
@@ -204,12 +457,10 @@
                                                         <h4 class="text-xl font-bold text-white mb-1" x-text="event.name"></h4>
                                                         <p class="text-xs text-slate-500 font-medium italic">Ends at <span x-text="event.end_time"></span></p>
                                                     </div>
-
                                                     <div class="flex items-center gap-2">
                                                         <button @click.stop="triggerEdit(event, currentDate)" class="p-3 rounded-2xl bg-blue-500/5 text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10 transition-all">
                                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                                                        </button> 
-                                                        
+                                                        </button>
                                                         <button @click.stop="triggerDelete(event, currentDate)" class="p-3 rounded-2xl bg-red-500/5 text-red-500/20 hover:text-red-500 hover:bg-red-500/10 transition-all">
                                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                                         </button>
@@ -218,7 +469,6 @@
                                             </div>
                                         </div>
                                     </template>
-                                    
                                     <template x-if="getEventsForDay(currentDate).length === 0">
                                         <div class="text-center py-24 bg-slate-950/30 rounded-[3rem] border border-dashed border-slate-800">
                                             <p class="text-slate-700 font-black text-xs uppercase tracking-[0.5em]">No Data Recorded</p>
@@ -232,19 +482,15 @@
 
                 <section class="bg-slate-900 p-8 md:p-12 rounded-[3rem] border border-slate-800/50 shadow-2xl relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 blur-[100px] rounded-full"></div>
-                    
                     <div class="relative z-10">
-                        <h3 class="font-black text-white mb-8 text-[14px] uppercase tracking-[0.4em]">Initialize Event</h3>                        
+                        <h3 class="font-black text-white mb-8 text-[14px] uppercase tracking-[0.4em]">Initialize Event</h3>
                         <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-                            
                             <div class="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-8">
-                                
                                 <div class="space-y-6">
                                     <div class="space-y-2">
                                         <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Event Title</label>
                                         <input x-model="newName" type="text" placeholder="e.g. Math Class" class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:ring-2 focus:ring-blue-500 transition">
                                     </div>
-
                                     <div class="grid grid-cols-2 gap-4">
                                         <div class="space-y-2">
                                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Date</label>
@@ -253,16 +499,15 @@
                                         <div class="space-y-2">
                                             <div class="flex justify-between items-center ml-1">
                                                 <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Category / Color</label>
-                                                <button @click="colorMode = colorMode === 'cat' ? 'hex' : 'cat'" 
+                                                <button @click="colorMode = colorMode === 'cat' ? 'hex' : 'cat'"
                                                         class="text-[9px] font-bold uppercase text-blue-500 hover:text-white transition">
-                                                    <span x-text="colorMode === 'cat' ? 'Switch to Custom Hex' : 'Switch to Categories'"></span>
+                                                    <span x-text="colorMode === 'cat' ? 'Custom Hex' : 'Categories'"></span>
                                                 </button>
                                             </div>
-
                                             <template x-if="colorMode === 'cat'">
-                                                <div class="grid grid-cols-2 gap-2 max-h-[168px] overflow-y-auto p-1 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                                                <div class="grid grid-cols-2 gap-2 max-h-[168px] overflow-y-auto p-1 pr-2">
                                                     <template x-for="cat in categories" :key="cat.id">
-                                                        <button @click="selectedCategoryId = cat.id" 
+                                                        <button @click="selectedCategoryId = cat.id"
                                                                 class="p-3 rounded-xl border text-[10px] font-black uppercase tracking-tight transition-all text-left flex items-center gap-2"
                                                                 :class="selectedCategoryId === cat.id ? 'ring-2 ring-white border-transparent' : 'border-slate-800 opacity-60 hover:opacity-100'"
                                                                 :style="getStyle(cat.color)">
@@ -272,7 +517,6 @@
                                                     </template>
                                                 </div>
                                             </template>
-
                                             <template x-if="colorMode === 'hex'">
                                                 <div class="flex gap-3 bg-slate-950 border border-slate-800 p-3 rounded-2xl h-[54px] items-center">
                                                     <input type="color" x-model="newColor" class="w-10 h-full bg-transparent border-none cursor-pointer">
@@ -292,14 +536,12 @@
                                             <input x-model="newEndTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white">
                                         </div>
                                     </div>
-
                                     <div class="pt-2 min-h-[160px]">
                                         <label class="flex items-center gap-3 cursor-pointer group mb-4 w-max">
                                             <input type="checkbox" x-model="isRecurring" class="w-5 h-5 rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0">
                                             <span class="text-[10px] font-black uppercase text-slate-500 group-hover:text-blue-500 transition">Enable Recurrence</span>
                                         </label>
-
-                                        <div x-show="isRecurring" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 -translate-y-2" class="grid grid-cols-2 gap-4">
+                                        <div x-show="isRecurring" class="grid grid-cols-2 gap-4">
                                             <div class="space-y-2">
                                                 <label class="text-[9px] font-bold text-slate-600 uppercase">Frequency</label>
                                                 <select x-model="recurrenceRule" class="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-xs font-bold text-white outline-none">
@@ -318,128 +560,82 @@
                             </div>
 
                             <div class="lg:col-span-3 h-full">
-                                <div class="lg:pt-6"> <button @click="addEvent" class="w-full bg-blue-600 hover:bg-blue-500 text-white p-8 rounded-[2rem] flex flex-col items-center justify-center gap-4 transition group shadow-2xl shadow-blue-600/20 active:scale-95">
+                                <div class="lg:pt-6">
+                                    <button @click="addEvent" class="w-full bg-blue-600 hover:bg-blue-500 text-white p-8 rounded-[2rem] flex flex-col items-center justify-center gap-4 transition group shadow-2xl shadow-blue-600/20 active:scale-95">
                                         <div class="bg-white/20 p-3 rounded-full group-hover:rotate-90 transition-transform duration-300">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" /></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
                                         </div>
                                         <span class="text-xs font-black uppercase tracking-[0.3em]">Add Event</span>
                                     </button>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </section>
             </div>
-        </template>
+        </div>
     </main>
-    <div x-show="showDeleteModal" 
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-200"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
+
+    <div x-show="showDeleteModal"
+        x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-        
-        <div @click.away="showDeleteModal = false" 
+        <div @click.away="showDeleteModal = false"
             class="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300">
-            
             <div class="text-center mb-8">
                 <div class="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 </div>
                 <h3 class="text-xl font-black text-white mb-2">Manage Recurring Event</h3>
-                <p class="text-slate-400 text-xs font-medium uppercase tracking-widest leading-relaxed">
-                    Choose how you want to handle this deletion.
-                </p>
+                <p class="text-slate-400 text-xs font-medium uppercase tracking-widest leading-relaxed">Choose how you want to handle this deletion.</p>
             </div>
-
             <div class="space-y-3">
-                <button @click="confirmDelete('single')" 
-                        class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-slate-700">
-                    Delete only today
-                </button>
-                
-                <button @click="confirmDelete('all')" 
-                        class="w-full py-4 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-red-500/20">
-                    Delete entire series
-                </button>
-                
-                <button @click="showDeleteModal = false" 
-                        class="w-full py-4 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-[0.2em] transition">
-                    Cancel
-                </button>
+                <button @click="confirmDelete('single')" class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-slate-700">Delete only today</button>
+                <button @click="confirmDelete('all')" class="w-full py-4 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-red-500/20">Delete entire series</button>
+                <button @click="showDeleteModal = false" class="w-full py-4 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-[0.2em] transition">Cancel</button>
             </div>
         </div>
     </div>
-    <div x-show="showEditChoiceModal" 
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-200"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
+
+    <div x-show="showEditChoiceModal"
+        x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-        
-        <div @click.away="showEditChoiceModal = false" 
+        <div @click.away="showEditChoiceModal = false"
             class="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] max-w-sm w-full shadow-2xl">
-            
             <div class="text-center mb-8">
                 <div class="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 </div>
                 <h3 class="text-xl font-black text-white mb-2">Edit Recurring Event</h3>
                 <p class="text-slate-400 text-xs font-medium uppercase tracking-widest">How would you like to edit this?</p>
             </div>
-
             <div class="space-y-3">
-                <button @click="selectEditMode('single')" 
-                        class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-slate-700">
-                    Edit only today
-                </button>
-                
-                <button @click="selectEditMode('all')" 
-                        class="w-full py-4 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-blue-500/20">
-                    Edit entire series
-                </button>
-                
-                <button @click="showEditChoiceModal = false" 
-                        class="w-full py-4 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-[0.2em] transition">
-                    Cancel
-                </button>
+                <button @click="selectEditMode('single')" class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-slate-700">Edit only today</button>
+                <button @click="selectEditMode('all')" class="w-full py-4 bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition border border-blue-500/20">Edit entire series</button>
+                <button @click="showEditChoiceModal = false" class="w-full py-4 text-slate-500 hover:text-white font-black text-[10px] uppercase tracking-[0.2em] transition">Cancel</button>
             </div>
         </div>
     </div>
-    <div x-show="isEditMode" 
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
+
+    <div x-show="isEditMode"
+        x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
         class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-        
-        <div @click.away="isEditMode = false" 
-            class="bg-slate-900 border border-slate-800 p-8 rounded-[3rem] max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
-            
+        <div @click.away="isEditMode = false"
+            class="bg-slate-900 border border-slate-800 p-8 rounded-[3rem] max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-8">
                 <h3 class="text-xl font-black text-white tracking-widest uppercase">Edit Event</h3>
-                <button @click="isEditMode = false" class="text-slate-500 hover:text-white transition">&times; Close</button>
+                <button @click="isEditMode = false" class="text-slate-500 hover:text-white transition text-sm">&times; Close</button>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-4 md:col-span-2">
                     <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Event Title</label>
                     <input x-model="newName" class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-
                 <div class="space-y-4">
                     <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Date</label>
                     <input x-model="newDate" type="date" class="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white outline-none">
                 </div>
-
                 <div class="space-y-4">
                     <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Time Range</label>
                     <div class="flex items-center gap-2">
@@ -447,9 +643,8 @@
                         <input x-model="newEndTime" type="time" class="flex-1 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white">
                     </div>
                 </div>
-
                 <div class="md:col-span-2 pt-6">
-                    <button @click="saveEdit()" 
+                    <button @click="saveEdit()"
                             class="w-full bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition shadow-lg shadow-blue-600/20">
                         Save Changes
                     </button>
