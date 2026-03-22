@@ -1,9 +1,6 @@
 document.addEventListener('alpine:init', () => {
     const pb = new PocketBase(window.location.origin);
 
-    // ─────────────────────────────────────────────
-    //  HELPERS
-    // ─────────────────────────────────────────────
     function toISO(date) {
         return new Date(date).toLocaleDateString('en-CA');
     }
@@ -21,20 +18,6 @@ document.addEventListener('alpine:init', () => {
         return d;
     }
 
-    // ─────────────────────────────────────────────
-    //  TASK BLOCK ALLOCATION ENGINE
-    //
-    //  For deadline tasks:
-    //    - Calculates weeks remaining until due date
-    //    - Divides total hours by weeks to get sessions/week
-    //    - Spreads sessions Mon/Wed/Fri/Tue/Thu pattern
-    //    - Respects preferred start time
-    //
-    //  For recurring tasks:
-    //    - Splits weekly hours by session length
-    //    - Allocates same days every week
-    //    - Runs forever or until recurrence_end
-    // ─────────────────────────────────────────────
     function allocateBlocks(task) {
         const blocks = [];
         const now = new Date();
@@ -53,10 +36,8 @@ document.addEventListener('alpine:init', () => {
                 ? new Date(task.recurrence_end + 'T23:59:59')
                 : new Date('2099-12-31');
 
-            // Start allocation from the current week's Sunday
             let weekStart = getWeekStart(now);
 
-            // Spread sessions across these day offsets (Mon=1, Wed=3, Fri=5, Tue=2, Thu=4, Sat=6)
             const dayPattern = [1, 3, 5, 2, 4, 6, 0];
 
             while (weekStart <= endDate) {
@@ -79,7 +60,6 @@ document.addEventListener('alpine:init', () => {
                 weekStart = addDays(weekStart, 7);
             }
         } else {
-            // Deadline-based task
             if (!task.due_date) return blocks;
 
             const due = new Date(task.due_date + 'T23:59:59');
@@ -90,12 +70,10 @@ document.addEventListener('alpine:init', () => {
             const totalSess   = Math.ceil(totalHrs / sessionHrs);
             const sessPerWeek = Math.ceil(totalSess / weeksLeft);
 
-            const dayPattern = [1, 3, 5, 2, 4, 0, 6]; // Mon, Wed, Fri, Tue, Thu, Sun, Sat
-
+            const dayPattern = [1, 3, 5, 2, 4, 0, 6]; 
             let placed    = 0;
             let weekStart = getWeekStart(now);
 
-            // For high priority tasks, we shift start time earlier and pack sessions
             const priorityHourAdjust = task.priority === 'high' ? -1 : (task.priority === 'low' ? 1 : 0);
             const effectiveStart = Math.min(20, Math.max(7, startHour + priorityHourAdjust));
 
@@ -105,7 +83,6 @@ document.addEventListener('alpine:init', () => {
                     const blockDate = addDays(weekStart, dayOffset);
 
                     if (blockDate >= now && blockDate <= due) {
-                        // Stagger hours if multiple sessions on pattern days
                         const hourOffset = s >= dayPattern.length ? 4 : 0;
                         blocks.push({
                             taskId:      task.id,
@@ -129,7 +106,6 @@ document.addEventListener('alpine:init', () => {
 
     Alpine.data('timetableApp', () => ({
 
-        // ── Calendar state ──────────────────────────────
         viewMode:    'month',
         activePanel: null,
         searchQuery: '',
@@ -138,13 +114,11 @@ document.addEventListener('alpine:init', () => {
         days:   ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
         months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
 
-        // ── Categories ──────────────────────────────────
         categories:       [],
         selectedCategoryId: '',
         newCatName:       '',
         newCatColor:      '#3b82f6',
 
-        // ── Events ──────────────────────────────────────
         events:      [],
         newName:     '',
         newDate:     new Date().toISOString().split('T')[0],
@@ -165,7 +139,6 @@ document.addEventListener('alpine:init', () => {
         editingDate:        null,
         isEditMode:         false,
 
-        // ── Tasks ────────────────────────────────────────
         tasks:          [],
         taskWeekOffset: 0,
         taskWeekCols:   [],
@@ -173,7 +146,6 @@ document.addEventListener('alpine:init', () => {
         taskFilter:     'all',
         allocPreview:   '',
 
-        // newTask form model
         newTask: {
             name:               '',
             categoryId:         '',
@@ -191,12 +163,8 @@ document.addEventListener('alpine:init', () => {
             preferredStartTime: '09:00',
         },
 
-        // In-memory task blocks cache (rebuilt on load / add / delete)
         _taskBlocks: [],
 
-        // ─────────────────────────────────────────────
-        //  INIT
-        // ─────────────────────────────────────────────
         async init() {
             await this.refreshCategories();
             await this.refreshEvents();
@@ -214,15 +182,11 @@ document.addEventListener('alpine:init', () => {
                 }
             });
 
-            // Update allocation preview reactively
             this.$watch('newTask.dueDate',    () => this.updateAllocPreview());
             this.$watch('newTask.totalHours', () => this.updateAllocPreview());
             this.$watch('newTask.sessionLen', () => this.updateAllocPreview());
         },
 
-        // ─────────────────────────────────────────────
-        //  CATEGORIES
-        // ─────────────────────────────────────────────
         async refreshCategories() {
             try {
                 this.categories = await pb.collection('categories').getFullList({ sort: 'name' });
@@ -254,9 +218,6 @@ document.addEventListener('alpine:init', () => {
             return cat?.color || '#3b82f6';
         },
 
-        // ─────────────────────────────────────────────
-        //  CALENDAR NAVIGATION
-        // ─────────────────────────────────────────────
         next()  { this.adjustDate(1); },
         prev()  { this.adjustDate(-1); },
         today() { this.currentDate = new Date(); this.render(); },
@@ -321,9 +282,6 @@ document.addEventListener('alpine:init', () => {
             return { main: month, sub: year };
         },
 
-        // ─────────────────────────────────────────────
-        //  EVENTS
-        // ─────────────────────────────────────────────
         async refreshEvents() {
             try {
                 this.events = await pb.collection('events').getFullList({ sort: 'date,start_time' });
@@ -504,12 +462,8 @@ document.addEventListener('alpine:init', () => {
             document.querySelector('section')?.scrollIntoView({ behavior: 'smooth' });
         },
 
-        // ─────────────────────────────────────────────
-        //  TASKS
-        // ─────────────────────────────────────────────
         async refreshTasks() {
             try {
-                // Expand the category_id relation so we get color/name inline
                 this.tasks = await pb.collection('tasks').getFullList({
                     sort:   'created',
                     expand: 'category_id',
@@ -553,7 +507,6 @@ document.addEventListener('alpine:init', () => {
 
             try {
                 await pb.collection('tasks').create(data);
-                // Reset form
                 this.newTask = {
                     name: '', categoryId: '', priority: 'medium', status: 'not_started',
                     notes: '', isRecurring: false, dueDate: '', linkedEventId: '',
@@ -586,9 +539,6 @@ document.addEventListener('alpine:init', () => {
             } catch (err) { console.error('Task delete failed:', err); }
         },
 
-        // ─────────────────────────────────────────────
-        //  TASK WEEK VIEW
-        // ─────────────────────────────────────────────
         renderTaskWeek() {
             const ws  = getWeekStart(new Date(), this.taskWeekOffset);
             const today = toISO(new Date());
@@ -628,9 +578,6 @@ document.addEventListener('alpine:init', () => {
             return h > 12 ? `${h - 12}pm` : `${h}am`;
         },
 
-        // ─────────────────────────────────────────────
-        //  ALLOCATION PREVIEW
-        // ─────────────────────────────────────────────
         updateAllocPreview() {
             const due     = this.newTask.dueDate;
             const hrs     = parseFloat(this.newTask.totalHours) || 0;
@@ -648,9 +595,6 @@ document.addEventListener('alpine:init', () => {
             this.allocPreview = `${totalSess} sessions total · ~${perWeek} per week of ${sess}h each across ${weeks} week${weeks > 1 ? 's' : ''}`;
         },
 
-        // ─────────────────────────────────────────────
-        //  SHARED UTILITIES
-        // ─────────────────────────────────────────────
         getStyle(hex) {
             const color = (hex && hex.startsWith('#')) ? hex : '#3b82f6';
             return `background-color: ${color}15; border-color: ${color}40; color: ${color};`;
